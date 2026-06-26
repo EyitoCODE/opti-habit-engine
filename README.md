@@ -16,6 +16,12 @@ An algorithmic continuous improvement tracking system built with Python, FastAPI
 * **Database:** SQLite, SQLAlchemy (ORM)
 * **Frontend:** HTML5, CSS3, JavaScript (Fetch API)
 
+  
+## Demos
+![Demo](opti_habit_demo.gif)
+
+
+
 ## Installation & Deployment
 
 ```bash
