@@ -18,7 +18,7 @@ An algorithmic continuous improvement tracking system built with Python, FastAPI
 
   
 ## Demos
-![Demo](opti_habit_demo.gif)
+![Demo](doc/opti_habit_demo.gif)
 
 
 
