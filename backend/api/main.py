@@ -1,45 +1,44 @@
-from fastapi import FastAPI, HTTPException
-from core.cv_verifier import HardwareVerifier
-from core.ema_algorithm import MomentumEngine
+"""
+Opti-Habit Engine: Main API Application Entrypoint
 
-app = FastAPI(title="Opti-Habit Engine API")
+Initializes FastAPI middleware, builds database tables,
+registers API route blueprints, and mounts static dashboard assets.
+"""
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-# Initialize core systems
-cv_system = HardwareVerifier()
-math_engine = MomentumEngine(alpha=0.1, decay_rate=0.05)
+from api.routes import router as habit_router
+from db.database import engine, Base
 
-# Temporary in-memory state (Database integration follows verification testing)
-current_user_state = {
-    "momentum": 0.0,
-    "last_task_weight": 1.5
-}
+# Build all declared database tables on startup
+Base.metadata.create_all(bind=engine)
 
-@app.get("/")
+app = FastAPI(
+    title="Opti-Habit Engine API",
+    description="Algorithmic habit tracker pairing EMA momentum with OpenCV hardware verification.",
+    version="1.0.0"
+)
+
+# Cross-Origin Resource Sharing configuration for decoupled web clients
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register route blueprints
+app.include_router(habit_router)
+
+@app.get("/health")
 def health_check():
+    """Confirms operational status of the service."""
     return {"status": "Algorithmic Engine & API Online"}
 
-@app.post("/verify-and-log")
-def verify_and_log_task():
-    """
-    Triggers the CV hardware verification. If successful, updates the EMA algorithm.
-    """
-    # 1. Trigger Hardware Verification
-    is_verified = cv_system.verify_physical_task(scan_duration=10)
-    
-    if not is_verified:
-        raise HTTPException(status_code=400, detail="Hardware verification failed. Task not completed.")
-    
-    # 2. Trigger Mathematical Engine
-    new_momentum = math_engine.log_completion(
-        current_momentum=current_user_state["momentum"],
-        weight=current_user_state["last_task_weight"]
-    )
-    
-    # Update state
-    current_user_state["momentum"] = new_momentum
-    
-    return {
-        "status": "Task Verified Successfully",
-        "new_momentum_score": new_momentum,
-        "verification_method": "OpenCV Canny Edge Detection"
-    }
+# Mount frontend directory for direct UI serving
+frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend"))
+if os.path.isdir(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
