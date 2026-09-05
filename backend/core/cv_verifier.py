@@ -1,18 +1,29 @@
-import cv2
+"""
+Opti-Habit Engine: Optical Proof-of-Work Verifier
+
+Uses OpenCV to open an electro-optic sensor feed, filter noise,
+apply Canny edge detection, and calculate structural contour area
+to verify physical proof-of-work before confirming habit execution.
+"""
 import time
+import cv2
 
 class HardwareVerifier:
-    def __init__(self, camera_index=0):
-        self.camera_index = camera_index
-
-    def verify_physical_task(self, scan_duration=10) -> bool:
+    def __init__(self, camera_index: int = 0, area_threshold: int = 15000):
         """
-        Opens the electro-optic sensor (webcam) and scans for physical objects 
-        using contour and edge detection. Returns True if verified.
+        camera_index: Hardware device index (0 is typically the integrated camera).
+        area_threshold: Minimum contour pixel area required to authenticate object presence.
+        """
+        self.camera_index = camera_index
+        self.area_threshold = area_threshold
+
+    def verify_physical_task(self, scan_duration: int = 10) -> bool:
+        """
+        Streams frames from the optical sensor, performing real-time edge analysis.
+        Returns True once an object matching the physical size threshold is detected.
         """
         cap = cv2.VideoCapture(self.camera_index)
         if not cap.isOpened():
-            print("Error: Could not initialize camera interface.")
             return False
 
         start_time = time.time()
@@ -23,34 +34,42 @@ class HardwareVerifier:
             if not ret:
                 break
 
-            # Signal Processing: Grayscale conversion and Gaussian Blur for noise reduction
+            # 1. Grayscale transformation simplifies 3D channel matrices into 1D intensity values.
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            
+            # 2. Gaussian blur filters out high-frequency sensor noise.
             blurred = cv2.GaussianBlur(gray, (5, 5), 0)
             
-            # Feature Extraction: Apply Canny Edge Detection
+            # 3. Canny edge detector calculates spatial gradient magnitudes via hysteresis thresholding.
             edges = cv2.Canny(blurred, 50, 150)
             
-            # Isolate geometric structures (contours)
+            # 4. Extract external geometric boundaries from the binary edge map.
             contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
             for contour in contours:
                 area = cv2.contourArea(contour)
-                # Area threshold to verify a significant object is close to the lens
-                if area > 15000:
+                if area > self.area_threshold:
                     x, y, w, h = cv2.boundingRect(contour)
-                    # Draw telemetry on the frame
-                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                    cv2.putText(frame, "SYSTEM VERIFIED", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    cv2.putText(
+                        frame, 
+                        "HARDWARE VERIFIED", 
+                        (x, max(y - 10, 20)), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 
+                        0.7, 
+                        (0, 255, 0), 
+                        2
+                    )
                     verified = True
-            
+
             cv2.imshow("Opti-Habit Hardware Verification", frame)
             
-            # Manual override (Press 'q' to quit early)
+            # Allow manual exit via 'q' key.
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
             if verified:
-                # Hold the verified frame on screen for 1.5 seconds for visual feedback
+                # Retain bounding box on screen for 1.5 seconds for visual confirmation.
                 cv2.waitKey(1500)
                 break
 
